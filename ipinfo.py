@@ -8,10 +8,11 @@ import requests
 import json
 import sys
 import argparse
+import dns.resolver
 
 
 # Main method
-def main(input_file, output_file, verbose, api_key, very_verbose):
+def main(input_file, output_file, verbose, api_key, very_verbose, dns):
 
     # Splash screen
     print('  _       _        __        _')
@@ -37,7 +38,14 @@ def main(input_file, output_file, verbose, api_key, very_verbose):
             if isIP(line.strip()):
                 ips.append(line.strip())
             else:
-                print('[!] ERROR:NON-IP:'+input_file+':'+str(line_count)+':'+line.strip())
+                if dns:
+                    resolved_name = resolve_ip(line.strip())
+                    if isIP(resolved_name):
+                        ips.append(resolved_name)
+                    else:
+                        print('[!] ERROR::'+input_file+':'+str(line_count)+':'+line.strip())+' - Unable to resolve hostname'
+                else:
+                    print('[!] ERROR:NON-IP:'+input_file+':'+str(line_count)+':'+line.strip())
 
     # Retrieve info from IPinfo and parse
     for ip in ips:
@@ -131,6 +139,26 @@ def isIP(addr):
         return False
 
 
+# Resolve passed hostname to IP
+def resolve_ip(hostname):
+    try:
+        result = dns.resolver.query(hostname)
+        dns.resolver.query(hostname)
+        return str(result[0])
+    except dns.resolver.NXDOMAIN:
+        return None
+    except TypeError:
+        return None
+    except dns.exception.Timeout:
+        return None
+    except dns.resolver.NoNameservers:
+        return None
+    except dns.resolver.NoAnswer:
+        return None
+    except dns.name.LabelTooLong:
+        return None
+
+
 # Launch program
 if __name__ == '__main__':
     # Parse arguments
@@ -140,12 +168,14 @@ if __name__ == '__main__':
     parser.add_argument('-v', '--verbose', help='Verbose mode', action='store_true')
     parser.add_argument('-vv', '--very-verbose', help='Print results as they are retrieved', action='store_true')
     parser.add_argument('-k', '--key', help='IPinfo key to use')
+    parser.add_argument('--dns', help='Resolve input lines that aren\'t IP addresses', action='store_true')
     args = parser.parse_args()
     arg_file = args.file
     arg_output = args.output
     arg_verbose = args.verbose
     arg_very_verbose = args.very_verbose
     arg_key = args.key
+    arg_dns = args.dns
 
     # Argument validation
     if arg_file:
@@ -162,4 +192,4 @@ if __name__ == '__main__':
         arg_output = arg_file+'-results.csv'
 
     # launch program
-    main(arg_file, arg_output, arg_verbose, arg_key, arg_very_verbose)
+    main(arg_file, arg_output, arg_verbose, arg_key, arg_very_verbose, arg_dns)
