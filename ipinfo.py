@@ -32,7 +32,7 @@ class IPinfoResolver:
 
     def __init__(self, args: dict):
         """Initialize attributes for IPinfoResolver instance"""
-        self.__version__ = '2.0.0'
+        self.__version__ = '2.1.0'
         self.args = args
         self.input = []
         self.scope_raw = []
@@ -112,80 +112,95 @@ class IPinfoResolver:
         if not asset_type:
             asset_type = 'host'
             resolve_string = self.resolve_ip(asset)
-        self.logger.debug(f'   Using "{resolve_string}" as resolved asset for "{asset}"')
+            if resolve_string == 'None':
+                resolve_string = None
 
-        # Get info and convert to JSON
-        asn = ''
-        url = f'https://ipinfo.io/{resolve_string}/json'
-        if self.args['key']:
-            url += f'?token={self.args["key"]}'
-        try:
-            headers = {'User-Agent': self.user_agent}
-            webpage = requests.get(url, headers=headers)
-            results = json.loads(webpage.text)
-            # Parse info
+        # If no resolved asset, skip
+        if not resolve_string:
+            self.logger.warning(f'    Hostname "{asset}" does not resolve to an IP address, skipping')
+            temp_dict = {'Asset': asset,
+                         'ResolvedAsset': 'DoesNotResolve',
+                         'ASN': 'None',
+                         'Owner': 'None',
+                         'Country': 'None',
+                         'InScope': asset in self.scope
+                         }
+            self.results.append(temp_dict)
+
+        # Request details from IPinfo.io
+        else:
+            self.logger.debug(f'   Using "{resolve_string}" as resolved asset for "{asset}"')
+            asn = ''
+            url = f'https://ipinfo.io/{resolve_string}/json'
+            if self.args['key']:
+                url += f'?token={self.args["key"]}'
             try:
-                org = self.remove_comma(str(results['org']))
-                if ' ' in org:
-                    asn = str(org.split(' ')[0]).strip()
-                    owner = str(org.split(asn)[1]).strip()
-                else:
-                    owner = str(org)
-            except KeyError:
-                asn = 'None'
-                owner = 'None'
-            try:
-                country = self.remove_comma(str(results['country']))
-            except KeyError:
-                country = 'None'
+                headers = {'User-Agent': self.user_agent}
+                webpage = requests.get(url, headers=headers)
+                results = json.loads(webpage.text)
+                # Parse info
+                try:
+                    org = self.remove_comma(str(results['org']))
+                    if ' ' in org:
+                        asn = str(org.split(' ')[0]).strip()
+                        owner = str(org.split(asn)[1]).strip()
+                    else:
+                        owner = str(org)
+                except KeyError:
+                    asn = 'None'
+                    owner = 'None'
+                try:
+                    country = self.remove_comma(str(results['country']))
+                except KeyError:
+                    country = 'None'
 
-            # Save results
-            temp_dict = {'Asset': asset,
-                         'ResolvedAsset': resolve_string,
-                         'ASN': asn,
-                         'Owner': owner,
-                         'Country': country,
-                         'InScope': asset in self.scope
-                         }
-            self.results.append(temp_dict)
+                # Save results
+                temp_dict = {'Asset': asset,
+                             'ResolvedAsset': resolve_string,
+                             'ASN': asn,
+                             'Owner': owner,
+                             'Country': country,
+                             'InScope': asset in self.scope
+                             }
+                self.results.append(temp_dict)
 
-        # Error, requests error
-        except requests.exceptions.RequestException as error:
-            self.logger.error(f'Requests error: {error}')
-            self.logger.debug(traceback.format_exc())
-            error_str = f'Error_{str(error).replace(" ","")}'
-            temp_dict = {'Asset': asset,
-                         'ResolvedAsset': resolve_string,
-                         'ASN': error_str,
-                         'Owner': error_str,
-                         'Country': error_str,
-                         'InScope': asset in self.scope
-                         }
-            self.results.append(temp_dict)
-        except json.JSONDecodeError as error:
-            self.logger.error(f'{error}: received non-JSON API response for {asset}')
-            self.logger.debug(traceback.format_exc())
-            error_str = f'Error_{str(error).replace(" ", "")}'
-            temp_dict = {'Asset': asset,
-                         'ResolvedAsset': resolve_string,
-                         'ASN': error_str,
-                         'Owner': error_str,
-                         'Country': error_str,
-                         'InScope': asset in self.scope
-                         }
-            self.results.append(temp_dict)
-        except Exception as error:
-            self.logger.error(f'Uncaught error occurred: {error}')
-            self.logger.debug(traceback.format_exc())
-            error_str = f'Error_{str(error).replace(" ", "")}'
-            temp_dict = {'Asset': asset,
-                         'ResolvedAsset': resolve_string,
-                         'ASN': error_str,
-                         'Owner': error_str,
-                         'Country': error_str,
-                         'InScope': asset in self.scope
-                         }
-            self.results.append(temp_dict)
+            # Error, requests error
+            except requests.exceptions.RequestException as error:
+                self.logger.error(f'Requests error: {error}')
+                self.logger.debug(traceback.format_exc())
+                error_str = f'Error_{str(error).replace(" ","")}'
+                temp_dict = {'Asset': asset,
+                             'ResolvedAsset': resolve_string,
+                             'ASN': error_str,
+                             'Owner': error_str,
+                             'Country': error_str,
+                             'InScope': asset in self.scope
+                             }
+                self.results.append(temp_dict)
+            except json.JSONDecodeError as error:
+                self.logger.error(f'{error}: received non-JSON API response for {asset}')
+                self.logger.debug(traceback.format_exc())
+                error_str = f'Error_{str(error).replace(" ", "")}'
+                temp_dict = {'Asset': asset,
+                             'ResolvedAsset': resolve_string,
+                             'ASN': error_str,
+                             'Owner': error_str,
+                             'Country': error_str,
+                             'InScope': asset in self.scope
+                             }
+                self.results.append(temp_dict)
+            except Exception as error:
+                self.logger.error(f'Uncaught error occurred: {error}')
+                self.logger.debug(traceback.format_exc())
+                error_str = f'Error_{str(error).replace(" ", "")}'
+                temp_dict = {'Asset': asset,
+                             'ResolvedAsset': resolve_string,
+                             'ASN': error_str,
+                             'Owner': error_str,
+                             'Country': error_str,
+                             'InScope': asset in self.scope
+                             }
+                self.results.append(temp_dict)
 
     def parse_file(self, file):
         """Parse file for IPs, CIDRs, and hostnames"""
@@ -241,8 +256,10 @@ class IPinfoResolver:
     def resolve_ip(hostname):
         """Resolve passed hostname to IP"""
         try:
+            resolver = dns.resolver.Resolver()
+            resolver.timeout = 5
+            resolver.lifetime = 5
             result = dns.resolver.resolve(hostname)
-            dns.resolver.resolve(hostname)
             return str(result[0])
         except dns.exception.DNSException:
             return None
