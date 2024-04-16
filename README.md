@@ -1,32 +1,41 @@
 # IPinfo
-By Alex Poorman
 
-## Purpose
+## Retrieve IP information using IPinfo.io
 Get IP owner, org, ASN, and country from IPinfo.io
 
 ## Quick Run
 ```
-python ipinfo.py -f list_of_ips_one_per_line.txt -o CustomOutput.csv
+git clone https://github.com/venominfosec/ipinfo
+cd ipinfo && pip3 install -r requirements.txt
+python3 ipinfo.py --file assets_to_resolve.txt
 ```
+
+## Output
+| Asset       | ResolvedAsset | ASN     | Owner         | Country | InScope |
+|-------------|---------------|---------|---------------|---------|---------|
+| 8.8.8.8     | 8.8.8.8       | AS15169 | Google LLC    | US      | False   |
+| example.com | 93.184.216.34 | AS15133 | Edgecast Inc. | US      | True    |
+| 8.8.8.0/24  | 8.8.8.0       | AS15169 | Google LLC    | SA      | False   |
+
 
 ## Usage
 ```
-root@kali:~# python ipinfo.py -h
-usage: ipinfo.py [-h] -f FILE [-o OUTPUT] [-v] [-vv] [-k KEY]
+python3 ipinfo.py --help
+usage: ipinfo.py [-h] --file FILE [--scope SCOPE] [--output OUTPUT] [--key KEY] [--debug]
 
-Retrive IP information using IPinfo.io
+Retrieve IP information using IPinfo.io
 
-optional arguments:
-  -h, --help            show this help message and exit
-  -f FILE, --file FILE  Argument is a file with list of CIDRs, one per line
-  -o OUTPUT, --output OUTPUT
-                        CSV output file, default = input_file-results.csv
-  -v, --verbose         Verbose mode
-  -vv, --very-verbose   Print results as they are retrieved
-  -k KEY, --key KEY     IPinfo key to use
+options:
+  -h, --help       show this help message and exit
 
+Input Options:
+  All files should have one entry per line, CIDRs will use the first IP in the range, hostnames will be resolved
+
+  --file FILE      IPs, hosts, or CIDRs to retrieve
+  --scope SCOPE    Scope file to determine if results are within scope
+
+Optional Options:
+  --output OUTPUT  CSV output file, default=ipinfo_results.csv
+  --key KEY        IPinfo API key to use, default is no key
+  --debug          Print tracebacks as they occur
 ```
-
-## Dependencies
-
-All dependencies should be default Python modules
